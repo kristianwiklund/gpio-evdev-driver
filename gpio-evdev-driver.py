@@ -44,7 +44,7 @@ def assign_keys(config):
 	keys = set()
 	keyboard = InputDevice(args.device)
 	for action in config['actions']:
-		print "press key for '%s' ..." % action
+		print ("press key for '%s' ..." % action)
 		while True:
 			event = wait_key(keyboard)
 			if event.code not in keys:
@@ -63,13 +63,13 @@ def wait_pins():
 			else:
 				if pin in pressed:
 					released.add(pin)
-        	sleep(POLLING_INTERVAL) # waiting between pins yields in better perofrmance
+		sleep(POLLING_INTERVAL) # waiting between pins yields in better perofrmance
 	return list(pressed)
 
 def assign_pins(config):
 	init_gpio()
 	for action in config['actions']:
-		print "press button for %s ... " % action
+		print ("press button for %s ... " % action)
 		pins = wait_pins()
 		config['actions'][action]['pins'] = pins
 	return config
@@ -80,7 +80,7 @@ def test_pins():
 		vals = []
 		for pin in PINS:
 			vals.append(GPIO.input(pin))
-		print vals
+		print (vals)
 		sleep(POLLING_INTERVAL)
 
 # writes config to JSON
@@ -93,6 +93,10 @@ def read_config(fname):
 	if isfile(fname):
 		with open(fname, 'r') as f:
 		    config = json.load(f, object_pairs_hook=OrderedDict)
+                # if we have a file specifying pins, we only initiate those pins, not all pins
+                PINS = []
+                for action,d in config['actions'].items():
+                        PINS += d['pins']
 	else:
 		actions = OrderedDict()
 		for action in DEFAULT_ACTIONS:
@@ -108,7 +112,7 @@ def create_mapping(config):
 		pins = d['pins']
 		key = d['key']
 		if pins and key is not None:
-			print "mapping pin(s) %s to key %d for '%s'" % (str(pins), key, action)
+			print ("mapping pin(s) %s to key %d for '%s'" % (str(pins), key, action))
 			if len(pins) == 1:
 				mapping[pins[0]] = key
 			else:
@@ -120,7 +124,8 @@ def polling_loop(mapping, combinations):
 	init_gpio()
 	uinput = UInput()
 
-	pin_state = [1]*len(PINS)
+        pin_state = dict.fromkeys(mapping.keys(),1)
+
 	combination_state = [False]*len(combinations)
 
 	while True:
@@ -206,9 +211,13 @@ if args.uninstall:
 	exit(0)
 
 # redirect std streams
-sys.stdout = open("stdout.txt", 'w')
-sys.stderr = open("stderr.txt", 'w')
-
+#sys.stdout = open("stdout.txt", 'w')
+#sys.stderr = open("stderr.txt", 'w')
+        
 # run driver mode
+print("Starting driver")
 mapping, combinations = create_mapping(config)
+# we should limit the impact on GPIO to the pins we actually use
+PINS=mapping.keys()
+
 polling_loop(mapping, combinations)
